@@ -27,7 +27,7 @@ def ensure_list(value):
 
 
 class Traverser(object):
-    def __init__(self, value):
+    def __init__(self, value, compare_function=None):
         if hasattr(value, 'json') and value.json.__class__.__name__ == 'instancemethod':
             value = value.json()
         if type(value) == type(""):
@@ -90,6 +90,8 @@ class Traverser(object):
             self.__dict__[index] = wrap_value(self()[index])
 
     def __eq__(self, other):
+        if self.compare_function:
+            return compare_function(self(), unwrap_value(other))
         return self() == unwrap_value(other)
 
     def __contains__(self, item):
