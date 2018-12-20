@@ -39,6 +39,7 @@ class Traverser(object):
                 if k not in self.__dict__:
                     self.__dict__[k] = wrap_value(v)
         self.__traversify__value = value
+        self.compare_function = compare_function
 
     def __call__(self):
         return self.__traversify__value
