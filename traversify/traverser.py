@@ -13,7 +13,7 @@ def split_escaped(path):
 
 
 def is_identifier(key):
-    return IDENTIFIER_REGEX.match(key) is not None
+    return IDENTIFIER_REGEX.match(str(key)) is not None
 
 
 def traversable(value):
