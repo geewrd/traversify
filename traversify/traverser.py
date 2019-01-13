@@ -104,7 +104,7 @@ class Traverser(object):
                 except ValueError:
                     pass
             try:
-                next_node = node[_key]
+                next_node = node.get(_key)
             except (AttributeError, TypeError, IndexError):
                 return None
             if not _keys:
@@ -126,21 +126,21 @@ class Traverser(object):
                 _key = int(_key)
                 if not isinstance(node(), list):
                     parent[parent_key] = [{}]
-                    node = parent[parent_key]
+                    node = parent.get(parent_key)
                     _key = 0
                 else:
                     if abs(_key) >= len(node):
-                        parent[parent_key].append({})
+                        parent.get(parent_key).append({})
                         _key = len(node) - 1 if _key >= 0 else 0
-                    node = parent[parent_key]
+                    node = parent.get(parent_key)
             except ValueError:
                 if not isinstance(node(), dict):
                     parent[parent_key] = {}
-                    node = parent[parent_key]
+                    node = parent(parent_key)
             if not _keys:
                 node[_key] = value
                 return self
-            return set_(node[_key], _keys, node, _key)
+            return set_(node.get(_key), _keys, node, _key)
 
         keys = split_escaped(path)
         return set_(self, keys)
