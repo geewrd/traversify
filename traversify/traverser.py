@@ -1,10 +1,15 @@
 import json
 import inspect
 import re
-from copy import copy, deepcopy
+import copy
 
 
 IDENTIFIER_REGEX = re.compile(r'^[a-zA-Z_]\w*$')
+
+
+def split_escaped(path):
+    return [k.replace('KQypbNUMED', '.') for
+            k in path.replace('..', 'KQypbNUMED').split('.')]
 
 
 def is_identifier(key):
@@ -40,7 +45,7 @@ class Traverser(object):
     def __init__(self, value, deepcopy=True, filter=None):
         if hasattr(value, 'json') and inspect.ismethod(value.json):
             value = value.json()
-        if type(value) == type(""):
+        if isinstance(value, str):
             value = json.loads(value)
         if not traversable(value):
             raise ValueError("Only list or dict types allowed: '{}'".format(value))
@@ -51,8 +56,15 @@ class Traverser(object):
             'filter': filter,
         }
 
-    def __call__(self):
-        return self.__traverser__internals__['value']
+    def __call__(self, path=None, value=None):
+        if path is not None and value is None:
+            return self._find(path)
+        elif None not in (path, value):
+            return self._set(path, value)
+        elif value and path is None:
+            raise ValueError('path argument cannot be None when value argument is not None')
+        else:
+            return self.__traverser__internals__['value']
 
     def to_json(self):
         return json.dumps(self())
@@ -82,22 +94,73 @@ class Traverser(object):
         value = self().get(attr, default)
         return wrap_value(value)
 
+    def _find(self, path):
+
+        def get(node, _keys):
+            _key = _keys.pop(0)
+            if isinstance(node(), list):
+                try:
+                    _key = int(_key)
+                except ValueError:
+                    pass
+            try:
+                next_node = node[_key]
+            except (AttributeError, TypeError, IndexError):
+                return None
+            if not _keys:
+                return next_node
+            if not isinstance(next_node, Traverser):
+                return None
+            return get(next_node, _keys)
+
+        keys = split_escaped(path)
+        return get(self, keys)
+
+    def _set(self, path, value, force=True, deepcopy=False):
+        if deepcopy:
+            return self.__deepcopy__()._set(path, value, force, False)
+
+        def set_(node, _keys, parent=None, parent_key=None):
+            _key = _keys.pop(0)
+            try:
+                _key = int(_key)
+                if not isinstance(node(), list):
+                    parent[parent_key] = [{}]
+                    node = parent[parent_key]
+                    _key = 0
+                else:
+                    if abs(_key) >= len(node):
+                        parent[parent_key].append({})
+                        _key = len(node) - 1 if _key >= 0 else 0
+                    node = parent[parent_key]
+            except ValueError:
+                if not isinstance(node(), dict):
+                    parent[parent_key] = {}
+                    node = parent[parent_key]
+            if not _keys:
+                node[_key] = value
+                return self
+            return set_(node[_key], _keys, node, _key)
+
+        keys = split_escaped(path)
+        return set_(self, keys)
+
     def ensure_list(self, item):
         value = self.get(item)
         if value is None:
             return None
-        if type(value) == type(self):
+        if isinstance(value, Traverser):
             return value
         return [value]
 
     def __getitem__(self, index):
-        if type(index) == type(''):
+        if isinstance(index, str):
             return self.get(index)
         else:
             value = self()
             if type(value) != list:
                 value = [value]
-            if type(index) == type(slice(0)):
+            if isinstance(index, type(slice(0))):
                 start = 0 if index.start is None else index.start
                 stop = len(value) if index.stop is None else index.stop
                 value = value[start:stop]
@@ -174,10 +237,10 @@ class Traverser(object):
         return wrap_value(value + item)
 
     def __copy__(self):
-        return Traverser(copy(self()))
+        return Traverser(copy.copy(self()))
 
-    def __deepcopy__(self, memo):
-        return Traverser(deepcopy(self()))
+    def __deepcopy__(self, memo=None):
+        return Traverser(copy.deepcopy(self()))
 
 
 class Filter(object):
