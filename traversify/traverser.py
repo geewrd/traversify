@@ -88,7 +88,10 @@ class Traverser(object):
             self[attr] = value
 
     def __repr__(self):
-        return 'Traverser({})'.format(self())
+        return 'Traverser({})'.format(json.dumps(self(), indent=2, default=str))
+
+    def __str__(self):
+        return 'Traverser({})'.format(json.dumps(self(), indent=2, default=str))
 
     def get(self, attr, default=None):
         value = self().get(attr, default)
@@ -134,7 +137,7 @@ class Traverser(object):
                         _key = len(node) - 1 if _key >= 0 else 0
                     node = parent.get(parent_key)
             except ValueError:
-                if not isinstance(node(), dict):
+                if not node or not isinstance(node(), dict):
                     parent[parent_key] = {}
                     node = parent(parent_key)
             if not _keys:
